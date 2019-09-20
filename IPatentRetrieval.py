@@ -1,8 +1,8 @@
 import cv2
 import os
 from objTypeClassifier import ObjTypeClassifier
+import faiss
 import numpy as np
-from annoy import AnnoyIndex
 
 class PatentRetrieval:
     def __init__(self, model_dir, gpu_id=0):
@@ -17,9 +17,8 @@ class PatentRetrieval:
 
     def create_retrieval_model(self, retrieval_model_path):
         assert (os.path.exists(retrieval_model_path))
-        retrieval_model = AnnoyIndex(self.__feature_len, metric="angular")
-        retrieval_model.load(retrieval_model_path)
 
+        retrieval_model = faiss.read_index(retrieval_model_path)
         return retrieval_model
 
     def extractFeature(self,im):
@@ -31,19 +30,24 @@ class PatentRetrieval:
         return feature
 
     def buildRetrievalDatabase(self,features,retrieval_model_path):
-        self.__database = AnnoyIndex(self.__feature_len,metric="angular")
-        index = 0
-        for feature in features:
-            self.__database.add_item(index,feature)
-            index += 1
+        if os.path.exists(retrieval_model_path):
+            retrieval_model = faiss.read_index(retrieval_model_path)
+        else:
+            retrieval_model = faiss.IndexFlatL2(self.__feature_len)
 
-        self.__database.build(2*self.__feature_len)
-        self.__database.save(retrieval_model_path)
+
+        features = np.array(features)
+        retrieval_model.add(features)
+        faiss.write_index(retrieval_model,retrieval_model_path)
+
+        return retrieval_model
 
     def query(self,im, k, retrieval_model):
         feature = self.extractFeature(im)
-        res = retrieval_model.get_nns_by_vector(feature,k,include_distances=False)
-        return  res
+
+        feature = np.array([feature])
+        res = retrieval_model.search(feature,k)
+        return  res[1][0],res[0][0]
 
 def buildRetrievalDatabase():
     model_dir = "./models"
@@ -51,34 +55,47 @@ def buildRetrievalDatabase():
 
     features = []
     index = 0
-    pic_dir = "/home/zqp/testpic/patentRetrieval"
+    pic_dir = "/home/zqp/testpic/patentRetrieval/"
+
+    pic_paths = sorted([pic_dir+pic_name for pic_name in os.listdir(pic_dir) if pic_name.endswith(".jpg")])
     num = len(os.listdir(pic_dir))
-    for pic_name in os.listdir(pic_dir):
-        im = cv2.imread(os.path.join(pic_dir,pic_name),0)
+    for pic_path in pic_paths:
+        im = cv2.imread(pic_path,0)
         res = net.extractFeature(im)
         if len(res):
             features.append(res)
-        else:
-            print (os.path.join(pic_dir,pic_name)+"************* is not exist")
 
         index += 1
         print ("processed***************%s/%s"%(index,num))
 
-    net.buildRetrievalDatabase(features,"./123.tree")
+    net.buildRetrievalDatabase(features,"./123.index")
 
 def query():
     model_dir = "./models"
-    retrieval_model_path="./123.tree"
+    retrieval_model_path="./123.index"
     net = PatentRetrieval(model_dir)
     retrieval_model = net.create_retrieval_model(retrieval_model_path)
 
-    pic_dir = "/home/zqp/testpic/patentRetrieval"
+    pic_dir = "/home/zqp/testpic/patentRetrieval/"
+    pic_paths = sorted([pic_dir+pic_name for pic_name in os.listdir(pic_dir) if pic_name.endswith(".jpg")])
     for pic_name in os.listdir(pic_dir):
         print(pic_name)
         im = cv2.imread(os.path.join(pic_dir,pic_name),0)
 
+        cv2.imshow("base",im)
+
         res = net.query(im,5,retrieval_model)
-        print (res)
+
+        top = 0
+        for idx in res[0]:
+            im_query = cv2.imread(pic_paths[idx])
+            cv2.imshow("query",im_query)
+            top += 1
+
+            print ("top*********",top)
+            cv2.waitKey(0)
+
+
 
 
 if __name__=="__main__":
