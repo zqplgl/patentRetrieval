@@ -42,7 +42,7 @@ class PatentRetrieval:
 
     def query(self,im, k, retrieval_model):
         feature = self.extractFeature(im)
-        res = retrieval_model.get_nns_by_vector(feature,k,include_distances=False)
+        res = retrieval_model.get_nns_by_vector(feature,k,include_distances=True)
         return  res
 
 def buildRetrievalDatabase():
