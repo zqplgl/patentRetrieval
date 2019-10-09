@@ -23,7 +23,21 @@ class ObjTypeClassifier:
 
         return blob
 
+    def __cleanBounding(self,im):
+        ret, im_threshold = cv2.threshold(im, 150, 255, cv2.THRESH_BINARY_INV)
+        contours, hierarchy = cv2.findContours(im_threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        con = np.vstack(contours)
+        con = cv2.convexHull(con)
+        con = np.squeeze(np.array(con), axis=(1,))
+        con = cv2.boundingRect(con)
+
+        return im[con[1]:con[1]+con[3],con[0]:con[0]+con[2]]
+
     def __resize_data(self,im):
+        im = self.__cleanBounding(im)
+        # cv2.imshow("im",im)
+        # cv2.waitKey(0)
         h, w = im.shape
 
         max_side = max(w, h)
