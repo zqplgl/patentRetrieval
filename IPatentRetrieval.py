@@ -45,6 +45,20 @@ class PatentRetrieval:
         res = retrieval_model.get_nns_by_vector(feature,k,include_distances=True)
         return  res
 
+    @staticmethod
+    def secondQuery(self,features,k=30):
+        features = np.array(features)
+        assert len(features.shape)==2
+        assert k<=features.shape[0] and k>0
+
+        feature = np.mean(features[:k,:],axis=0)
+        features -= feature
+        distance = np.sqrt(np.sum(features*features,axis=1))
+        index = np.argsort(distance)
+        sort_distance = distance[index]
+
+        return list(zip(index,sort_distance))
+
 def buildRetrievalDatabase():
     model_dir = "./models"
     net = PatentRetrieval(model_dir)
