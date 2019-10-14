@@ -43,10 +43,13 @@ class PatentRetrieval:
     def query(self,im, k, retrieval_model):
         feature = self.extractFeature(im)
         res = retrieval_model.get_nns_by_vector(feature,k,include_distances=True)
-        return  res
+        features = []
+        for index in res[0]:
+            features.append(retrieval_model.get_item_vector(index))
+        return  res,features
 
     @staticmethod
-    def secondQuery(self,features,k=30):
+    def secondQuery(features,k=30):
         features = np.array(features)
         assert len(features.shape)==2
         assert k<=features.shape[0] and k>0
@@ -91,7 +94,10 @@ def query():
         print(pic_name)
         im = cv2.imread(os.path.join(pic_dir,pic_name),0)
 
-        res = net.query(im,5,retrieval_model)
+        res,features = net.query(im,15,retrieval_model)
+        print(type(features[0]))
+        print(net.secondQuery(features,5))
+
         print (res)
 
 
